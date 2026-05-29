@@ -1,0 +1,33 @@
+{
+  "name": "postpartum-saas",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "start": "next start",
+    "build": "prisma generate && next build",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "db:push": "prisma generate && prisma db push",
+    "db:init": "prisma generate && prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script | prisma db execute --stdin --schema prisma/schema.prisma && tsx prisma/seed.ts",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma generate && prisma db push --force-reset && tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.8.2",
+    "next": "^15.3.2",
+    "prisma": "^6.8.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

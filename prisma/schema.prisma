@@ -1,0 +1,676 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id            String   @id @default(cuid())
+  name          String
+  code          String   @unique
+  city          String
+  address       String
+  managerName   String
+  phone         String
+  businessHours String   @default("09:00-21:00")
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberships     StoreMembership[]
+  employees       Employee[]
+  customers       Customer[]
+  leads           Lead[]
+  serviceItems    ServiceItem[]
+  servicePackages ServicePackage[]
+  appointments    Appointment[]
+  rooms           Room[]
+  equipment       Equipment[]
+  orders          Order[]
+  expenses        Expense[]
+  products        Product[]
+  campaigns       Campaign[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships           StoreMembership[]
+  employee              Employee?
+  assignedCustomers     Customer[]        @relation("AdvisorCustomers")
+  assignedLeads         Lead[]            @relation("AdvisorLeads")
+  createdFollowUps      FollowUpRecord[]
+  createdServiceRecords ServiceRecord[]
+  notifications         Notification[]
+  auditLogs             AuditLog[]
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String
+  level       Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships StoreMembership[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  category    String
+  description String
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+}
+
+model StoreMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  storeId   String
+  roleId    String
+  dataScope String   @default("store")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id])
+  store Store @relation(fields: [storeId], references: [id])
+  role  Role  @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, storeId])
+  @@index([storeId, roleId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  storeId   String
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  detail    String?
+  createdAt DateTime @default(now())
+
+  store Store @relation(fields: [storeId], references: [id])
+  user  User? @relation(fields: [userId], references: [id])
+
+  @@index([storeId, createdAt])
+}
+
+model Position {
+  id        String   @id @default(cuid())
+  storeId   String
+  name      String
+  category  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  employees Employee[]
+
+  @@unique([storeId, name])
+}
+
+model Employee {
+  id             String    @id @default(cuid())
+  storeId        String
+  userId         String?   @unique
+  positionId     String?
+  name           String
+  phone          String
+  roleType       String
+  hireDate       DateTime?
+  status         String    @default("active")
+  commissionRate Float     @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  store          Store           @relation(fields: [storeId], references: [id])
+  user           User?           @relation(fields: [userId], references: [id])
+  position       Position?       @relation(fields: [positionId], references: [id])
+  workShifts     WorkShift[]
+  leaveRequests  LeaveRequest[]
+  appointments   Appointment[]
+  serviceRecords ServiceRecord[]
+
+  @@index([storeId, roleType])
+}
+
+model WorkShift {
+  id         String   @id @default(cuid())
+  storeId    String
+  employeeId String
+  date       String
+  startTime  String
+  endTime    String
+  type       String   @default("regular")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([storeId, date])
+}
+
+model LeaveRequest {
+  id         String   @id @default(cuid())
+  storeId    String
+  employeeId String
+  startDate  String
+  endDate    String
+  reason     String
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([storeId, status])
+}
+
+model Customer {
+  id             String   @id @default(cuid())
+  storeId        String
+  advisorId      String?
+  name           String
+  phone          String
+  birthday       String?
+  source         String
+  status         String   @default("active")
+  productionDate String?
+  productionType String?
+  address        String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  store             Store              @relation(fields: [storeId], references: [id])
+  advisor           User?              @relation("AdvisorCustomers", fields: [advisorId], references: [id])
+  babies            BabyProfile[]
+  postpartumProfile PostpartumProfile?
+  tags              CustomerTag[]
+  followUps         FollowUpRecord[]
+  packages          CustomerPackage[]
+  appointments      Appointment[]
+  orders            Order[]
+  reminders         CareReminder[]
+
+  @@index([storeId, phone])
+  @@index([storeId, advisorId])
+}
+
+model BabyProfile {
+  id         String   @id @default(cuid())
+  storeId    String
+  customerId String
+  name       String
+  gender     String
+  birthday   String
+  feeding    String
+  heightCm   Float?
+  weightKg   Float?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([storeId, customerId])
+}
+
+model PostpartumProfile {
+  id             String   @id @default(cuid())
+  storeId        String
+  customerId     String   @unique
+  stage          String
+  diastasisCm    Float?
+  pelvicFloor    String?
+  lactation      String?
+  incisionStatus String?
+  sleepQuality   String?
+  weightKg       Float?
+  riskNotes      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+}
+
+model CustomerTag {
+  id         String   @id @default(cuid())
+  storeId    String
+  customerId String
+  name       String
+  color      String   @default("#176b5f")
+  createdAt  DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([storeId, name])
+}
+
+model FollowUpRecord {
+  id          String   @id @default(cuid())
+  storeId     String
+  customerId  String
+  createdById String
+  channel     String
+  content     String
+  nextAction  String?
+  nextDate    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer  Customer @relation(fields: [customerId], references: [id])
+  createdBy User     @relation(fields: [createdById], references: [id])
+
+  @@index([storeId, customerId])
+}
+
+model LeadSource {
+  id        String   @id @default(cuid())
+  storeId   String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads Lead[]
+
+  @@unique([storeId, name])
+}
+
+model Lead {
+  id          String   @id @default(cuid())
+  storeId     String
+  sourceId    String?
+  advisorId   String?
+  name        String
+  phone       String
+  stage       String   @default("new")
+  intentLevel String   @default("medium")
+  dueDate     String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store   Store              @relation(fields: [storeId], references: [id])
+  source  LeadSource?        @relation(fields: [sourceId], references: [id])
+  advisor User?              @relation("AdvisorLeads", fields: [advisorId], references: [id])
+  history LeadStageHistory[]
+
+  @@index([storeId, stage])
+}
+
+model LeadStageHistory {
+  id        String   @id @default(cuid())
+  storeId   String
+  leadId    String
+  fromStage String?
+  toStage   String
+  note      String?
+  createdAt DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([storeId, leadId])
+}
+
+model ServiceItem {
+  id              String   @id @default(cuid())
+  storeId         String
+  name            String
+  category        String
+  durationMinutes Int
+  priceCents      Int
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  store          Store           @relation(fields: [storeId], references: [id])
+  packageItems   PackageItem[]
+  appointments   Appointment[]
+  serviceRecords ServiceRecord[]
+
+  @@index([storeId, category])
+}
+
+model ServicePackage {
+  id           String   @id @default(cuid())
+  storeId      String
+  name         String
+  priceCents   Int
+  validityDays Int
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  store            Store             @relation(fields: [storeId], references: [id])
+  items            PackageItem[]
+  customerPackages CustomerPackage[]
+  orders           Order[]
+
+  @@index([storeId, active])
+}
+
+model PackageItem {
+  id        String @id @default(cuid())
+  packageId String
+  itemId    String
+  quantity  Int
+
+  package     ServicePackage @relation(fields: [packageId], references: [id])
+  serviceItem ServiceItem    @relation(fields: [itemId], references: [id])
+
+  @@unique([packageId, itemId])
+}
+
+model CustomerPackage {
+  id                String   @id @default(cuid())
+  storeId           String
+  customerId        String
+  packageId         String
+  orderId           String?
+  totalSessions     Int
+  remainingSessions Int
+  startDate         String
+  expireDate        String
+  status            String   @default("active")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  customer       Customer        @relation(fields: [customerId], references: [id])
+  package        ServicePackage  @relation(fields: [packageId], references: [id])
+  order          Order?          @relation(fields: [orderId], references: [id])
+  serviceRecords ServiceRecord[]
+
+  @@index([storeId, customerId])
+}
+
+model Appointment {
+  id            String   @id @default(cuid())
+  storeId       String
+  customerId    String
+  employeeId    String
+  serviceItemId String
+  roomId        String?
+  equipmentId   String?
+  date          String
+  startTime     String
+  endTime       String
+  status        String   @default("booked")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  store         Store          @relation(fields: [storeId], references: [id])
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  employee      Employee       @relation(fields: [employeeId], references: [id])
+  serviceItem   ServiceItem    @relation(fields: [serviceItemId], references: [id])
+  room          Room?          @relation(fields: [roomId], references: [id])
+  equipment     Equipment?     @relation(fields: [equipmentId], references: [id])
+  serviceRecord ServiceRecord?
+
+  @@index([storeId, date])
+  @@index([employeeId, date])
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  storeId   String
+  name      String
+  type      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store        Store           @relation(fields: [storeId], references: [id])
+  appointments Appointment[]
+  blocks       ScheduleBlock[]
+
+  @@unique([storeId, name])
+}
+
+model Equipment {
+  id        String   @id @default(cuid())
+  storeId   String
+  name      String
+  type      String
+  status    String   @default("available")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store        Store           @relation(fields: [storeId], references: [id])
+  appointments Appointment[]
+  blocks       ScheduleBlock[]
+
+  @@unique([storeId, name])
+}
+
+model ScheduleBlock {
+  id          String   @id @default(cuid())
+  storeId     String
+  employeeId  String?
+  roomId      String?
+  equipmentId String?
+  date        String
+  startTime   String
+  endTime     String
+  reason      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  room      Room?      @relation(fields: [roomId], references: [id])
+  equipment Equipment? @relation(fields: [equipmentId], references: [id])
+
+  @@index([storeId, date])
+}
+
+model ServiceRecord {
+  id                String   @id @default(cuid())
+  storeId           String
+  appointmentId     String   @unique
+  customerPackageId String?
+  serviceItemId     String
+  employeeId        String
+  createdById       String
+  result            String
+  customerFeedback  String?
+  consumedSessions  Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  appointment     Appointment      @relation(fields: [appointmentId], references: [id])
+  customerPackage CustomerPackage? @relation(fields: [customerPackageId], references: [id])
+  serviceItem     ServiceItem      @relation(fields: [serviceItemId], references: [id])
+  employee        Employee         @relation(fields: [employeeId], references: [id])
+  createdBy       User             @relation(fields: [createdById], references: [id])
+
+  @@index([storeId, employeeId])
+}
+
+model Order {
+  id          String   @id @default(cuid())
+  storeId     String
+  customerId  String
+  packageId   String?
+  orderNo     String   @unique
+  type        String
+  amountCents Int
+  paidCents   Int      @default(0)
+  status      String   @default("unpaid")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store            Store             @relation(fields: [storeId], references: [id])
+  customer         Customer          @relation(fields: [customerId], references: [id])
+  package          ServicePackage?   @relation(fields: [packageId], references: [id])
+  payments         Payment[]
+  refunds          RefundRequest[]
+  customerPackages CustomerPackage[]
+
+  @@index([storeId, status])
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  storeId     String
+  orderId     String
+  method      String
+  amountCents Int
+  paidAt      DateTime @default(now())
+  note        String?
+  createdAt   DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([storeId, paidAt])
+}
+
+model RefundRequest {
+  id          String   @id @default(cuid())
+  storeId     String
+  orderId     String
+  amountCents Int
+  reason      String
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([storeId, status])
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  storeId     String
+  category    String
+  amountCents Int
+  occurredAt  String
+  vendor      String?
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  @@index([storeId, occurredAt])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  storeId     String
+  name        String
+  category    String
+  unit        String
+  lowStockQty Int      @default(10)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store     Store           @relation(fields: [storeId], references: [id])
+  stock     StockItem?
+  movements StockMovement[]
+
+  @@unique([storeId, name])
+}
+
+model StockItem {
+  id        String   @id @default(cuid())
+  storeId   String
+  productId String   @unique
+  quantity  Int
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([storeId])
+}
+
+model StockMovement {
+  id        String   @id @default(cuid())
+  storeId   String
+  productId String
+  type      String
+  quantity  Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([storeId, createdAt])
+}
+
+model Campaign {
+  id          String   @id @default(cuid())
+  storeId     String
+  name        String
+  type        String
+  startDate   String
+  endDate     String
+  status      String   @default("draft")
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  @@index([storeId, status])
+}
+
+model CareReminder {
+  id         String   @id @default(cuid())
+  storeId    String
+  customerId String
+  title      String
+  dueDate    String
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([storeId, dueDate])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  storeId   String
+  userId    String
+  title     String
+  content   String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  store Store @relation(fields: [storeId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([storeId, userId, readAt])
+}
