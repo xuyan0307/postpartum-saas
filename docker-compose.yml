@@ -1,0 +1,15 @@
+services:
+  postpartum-saas:
+    build: .
+    container_name: postpartum-saas
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "file:../data/postpartum.db"
+      AUTH_COOKIE_NAME: "postpartum_session"
+    volumes:
+      - postpartum_data:/app/data
+
+volumes:
+  postpartum_data:
